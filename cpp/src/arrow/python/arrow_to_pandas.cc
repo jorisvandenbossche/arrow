@@ -27,6 +27,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "arrow/array.h"
 #include "arrow/buffer.h"
@@ -143,6 +144,22 @@ void ArrowCapsule_Destructor(PyObject* capsule) {
 
 }  // namespace
 
+
+struct ArrowChunkedArrayCapsule {
+  std::shared_ptr<ChunkedArray> chunked_array;
+};
+
+namespace {
+
+void ArrowChunkedArrayCapsule_Destructor(PyObject* capsule) {
+  delete reinterpret_cast<ArrowCapsule*>(PyCapsule_GetPointer(capsule, "arrow"));
+}
+
+}  // namespace
+
+
+
+
 // ----------------------------------------------------------------------
 // pandas 0.x DataFrame conversion internals
 
@@ -215,7 +232,8 @@ class PandasBlock {
     BOOL,
     DATETIME,
     DATETIME_WITH_TZ,
-    CATEGORICAL
+    CATEGORICAL,
+    EXTENSION
   };
 
   PandasBlock(const PandasOptions& options, int64_t num_rows, int num_columns)
@@ -229,6 +247,7 @@ class PandasBlock {
   PyObject* block_arr() const { return block_arr_.obj(); }
 
   virtual Status GetPyResult(PyObject** output) {
+    std::cout << "I am inside base GetPyResult" << std::endl;
     PyObject* result = PyDict_New();
     RETURN_IF_PYERROR();
 
@@ -1268,6 +1287,65 @@ class CategoricalBlock : public PandasBlock {
   bool needs_copy_;
 };
 
+class ExtensionBlock : public PandasBlock {
+ public:
+  using PandasBlock::PandasBlock;
+
+  // Don't create array here
+  Status Allocate() override { return Status::OK(); }
+
+  Status Write(const std::shared_ptr<Column>& col, int64_t abs_placement,
+               int64_t rel_placement) override {
+    // Type::type type = col->type()->id();
+
+    // if (type != Type::BOOL) {
+    //   return Status::NotImplemented("Cannot write Arrow data of type ",
+    //                                 col->type()->ToString(),
+    //                                 " to a Pandas boolean block");
+    // }
+    
+    // need capsule
+    //data_ = *col->data().get();
+
+    auto arr = col->data();
+    auto capsule = new ArrowChunkedArrayCapsule{{arr}};
+    PyObject* py_capsule = PyCapsule_New(reinterpret_cast<void*>(capsule), "arrow",
+                                          &ArrowChunkedArrayCapsule_Destructor);
+    py_capsule_.reset(py_capsule);
+
+    placement_data_[rel_placement] = abs_placement;
+    return Status::OK();
+  }
+
+  Status GetPyResult(PyObject** output) override {
+    std::cout << "I am inside GetPyResult" << std::endl;
+
+	
+    PyObject* result = PyDict_New();
+    RETURN_IF_PYERROR();
+
+    PyObject* py_num_rows = PyLong_FromLong(num_rows_);
+    std::cout << "  --  setting n" << std::endl;
+    PyDict_SetItemString(result, "n", py_num_rows);
+    std::cout << "  --  setting arrow_capsule" << std::endl;
+    PyDict_SetItemString(result, "arrow_capsule", py_capsule_.obj());
+    std::cout << "  --  setting placement" << std::endl;
+    PyDict_SetItemString(result, "placement", placement_arr_.obj());
+
+    *output = result;
+
+    std::cout << "  --  finished here" << std::endl;
+    return Status::OK();
+  }
+
+protected:
+  OwnedRefNoGIL py_capsule_;
+//  private:
+//   ChunkedArray& data_;
+};
+
+
+
 Status MakeBlock(const PandasOptions& options, PandasBlock::type type, int64_t num_rows,
                  int num_columns, std::shared_ptr<PandasBlock>* block) {
 #define BLOCK_CASE(NAME, TYPE)                                       \
@@ -1323,7 +1401,8 @@ static Status GetPandasBlockType(const Column& col, const PandasOptions& options
     case Type::INT16:
       INTEGER_CASE(INT16);
     case Type::UINT32:
-      INTEGER_CASE(UINT32);
+      *output_type = PandasBlock::EXTENSION;
+      break;
     case Type::INT32:
       INTEGER_CASE(INT32);
     case Type::UINT64:
@@ -1398,6 +1477,7 @@ class DataFrameBlockCreator {
       : table_(table), options_(options), pool_(pool) {}
 
   Status Convert(PyObject** output) {
+    std::cout << "I am inside DataFrameBlockCreator.convert" << std::endl;
     column_types_.resize(table_->num_columns());
     column_block_placement_.resize(table_->num_columns());
     type_counts_.clear();
@@ -1406,6 +1486,8 @@ class DataFrameBlockCreator {
     RETURN_NOT_OK(CreateBlocks());
     RETURN_NOT_OK(WriteTableToBlocks());
 
+    std::cout << " -- created and writtin blocks" << std::endl;
+    std::cout << " -- going to get result list" << std::endl;
     return GetResultList(output);
   }
 
@@ -1414,6 +1496,8 @@ class DataFrameBlockCreator {
       std::shared_ptr<Column> col = table_->column(i);
       PandasBlock::type output_type = PandasBlock::OBJECT;
       RETURN_NOT_OK(GetPandasBlockType(*col, options_, &output_type));
+
+      std::cout << "I am inside CreateBlocks" << std::endl;
 
       int block_placement = 0;
       std::shared_ptr<PandasBlock> block;
@@ -1426,6 +1510,11 @@ class DataFrameBlockCreator {
                                                   table_->num_rows());
         RETURN_NOT_OK(block->Allocate());
         datetimetz_blocks_[i] = block;
+      } else if (output_type == PandasBlock::EXTENSION) {
+        std::cout << " -- going to create a ExtensionBlock" << std::endl;
+        block = std::make_shared<ExtensionBlock>(options_, table_->num_rows(), 1);
+        std::cout << " -- created a ExtensionBlock" << std::endl;
+        extension_blocks_[i] = block;
       } else {
         auto it = type_counts_.find(output_type);
         if (it != type_counts_.end()) {
@@ -1453,6 +1542,7 @@ class DataFrameBlockCreator {
   }
 
   Status GetBlock(int i, std::shared_ptr<PandasBlock>* block) {
+    std::cout << "I am inside GetBlock" << std::endl;
     PandasBlock::type output_type = this->column_types_[i];
 
     if (output_type == PandasBlock::CATEGORICAL) {
@@ -1467,6 +1557,13 @@ class DataFrameBlockCreator {
         return Status::KeyError("No datetimetz block allocated");
       }
       *block = it->second;
+    } else if (output_type == PandasBlock::EXTENSION) {
+      auto it = this->extension_blocks_.find(i);
+      if (it == this->extension_blocks_.end()) {
+        return Status::KeyError("No extension block allocated");
+      }
+      *block = it->second;
+      std::cout << " -- got extension block" << std::endl;
     } else {
       auto it = this->blocks_.find(output_type);
       if (it == this->blocks_.end()) {
@@ -1479,6 +1576,7 @@ class DataFrameBlockCreator {
 
   Status WriteTableToBlocks() {
     auto WriteColumn = [this](int i) {
+      std::cout << " -- writing column " << i << std::endl;
       std::shared_ptr<PandasBlock> block;
       RETURN_NOT_OK(this->GetBlock(i, &block));
       return block->Write(this->table_->column(i), i, this->column_block_placement_[i]);
@@ -1495,8 +1593,10 @@ class DataFrameBlockCreator {
   }
 
   Status AppendBlocks(const BlockMap& blocks, PyObject* list) {
+    std::cout << "I am inside AppendBlocks" << std::endl;
     for (const auto& it : blocks) {
       PyObject* item;
+      std::cout << " -- going to call GetPyResult" << std::endl;
       RETURN_NOT_OK(it.second->GetPyResult(&item));
       if (PyList_Append(list, item) < 0) {
         RETURN_IF_PYERROR();
@@ -1509,6 +1609,7 @@ class DataFrameBlockCreator {
   }
 
   Status GetResultList(PyObject** out) {
+    std::cout << "I am inside GetResultList" << std::endl;
     PyAcquireGIL lock;
 
     PyObject* result = PyList_New(0);
@@ -1517,6 +1618,7 @@ class DataFrameBlockCreator {
     RETURN_NOT_OK(AppendBlocks(blocks_, result));
     RETURN_NOT_OK(AppendBlocks(categorical_blocks_, result));
     RETURN_NOT_OK(AppendBlocks(datetimetz_blocks_, result));
+    RETURN_NOT_OK(AppendBlocks(extension_blocks_, result));
 
     *out = result;
     return Status::OK();
@@ -1547,6 +1649,9 @@ class DataFrameBlockCreator {
 
   // column number -> datetimetz block
   BlockMap datetimetz_blocks_;
+
+  // column number -> extension block
+  BlockMap extension_blocks_;
 };
 
 class ArrowDeserializer {
@@ -1946,6 +2051,7 @@ Status ConvertTableToPandas(const PandasOptions& options,
                             const std::unordered_set<std::string>& categorical_columns,
                             const std::shared_ptr<Table>& table, MemoryPool* pool,
                             PyObject** out) {
+  std::cout << "I am inside ConvertTableToPandas" << std::endl;
   std::shared_ptr<Table> current_table = table;
   if (!categorical_columns.empty()) {
     FunctionContext ctx;
