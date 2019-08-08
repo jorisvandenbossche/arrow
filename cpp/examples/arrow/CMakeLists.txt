@@ -17,3 +17,5 @@
 
 ADD_ARROW_EXAMPLE(row-wise-conversion-example)
 ADD_ARROW_EXAMPLE(extension-type-example)
+ADD_ARROW_EXAMPLE(debug-example)
+ADD_ARROW_EXAMPLE(unknown-extension-type-example)
