@@ -18,10 +18,13 @@
 # cython: language_level = 3
 
 import six
+from cpython.datetime cimport datetime, PyDateTime_DateTime
 
 from pyarrow.compat import frombytes, tobytes
 from pyarrow.includes.common cimport *
-from pyarrow.includes.libarrow cimport PyDateTime_from_TimePoint
+from pyarrow.includes.libarrow cimport (
+    PyDateTime_from_TimePoint, PyDateTime_to_TimePoint
+)
 from pyarrow.lib import _detect_compression
 from pyarrow.lib cimport *
 
@@ -45,10 +48,13 @@ cdef class FileStats:
                         "FileSystem.get_target_stats method instead.")
 
     @staticmethod
-    cdef FileStats wrap(CFileStats stats):
+    cdef wrap(CFileStats stats):
         cdef FileStats self = FileStats.__new__(FileStats)
         self.stats = stats
         return self
+
+    cdef inline CFileStats unwrap(self):
+        return self.stats
 
     def __repr__(self):
         def getvalue(attr):
@@ -144,6 +150,9 @@ cdef class Selector:
         self.recursive = recursive
         self.allow_non_existent = allow_non_existent
 
+    cdef inline CSelector unwrap(self):
+        return self.selector
+
     @property
     def base_dir(self):
         return frombytes(self.selector.base_dir)
@@ -180,6 +189,27 @@ cdef class FileSystem:
     cdef init(self, const shared_ptr[CFileSystem]& wrapped):
         self.wrapped = wrapped
         self.fs = wrapped.get()
+
+    @staticmethod
+    cdef wrap(shared_ptr[CFileSystem]& sp):
+        cdef FileSystem self
+
+        # TODO(kszucs): add S3
+        typ = frombytes(sp.get().type())
+        if typ == 'local':
+            self = LocalFileSystem.__new__(LocalFileSystem)
+        elif typ == 'mock':
+            self = _MockFileSystem.__new__(_MockFileSystem)
+        elif typ == 'subtree':
+            self = SubTreeFileSystem.__new__(SubTreeFileSystem)
+        else:
+            raise TypeError('Cannot wrap FileSystem pointer')
+
+        self.init(sp)
+        return self
+
+    cdef inline shared_ptr[CFileSystem] unwrap(self):
+        return self.wrapped
 
     def get_target_stats(self, paths_or_selector):
         """Get statistics for the given target.
@@ -547,3 +577,20 @@ cdef class SubTreeFileSystem(FileSystem):
     cdef init(self, const shared_ptr[CFileSystem]& wrapped):
         FileSystem.init(self, wrapped)
         self.subtreefs = <CSubTreeFileSystem*> wrapped.get()
+
+
+cdef class _MockFileSystem(FileSystem):
+
+    def __init__(self, datetime current_time=None):
+        cdef shared_ptr[CMockFileSystem] wrapped
+
+        current_time = current_time or datetime.now()
+        wrapped = make_shared[CMockFileSystem](
+            PyDateTime_to_TimePoint(<PyDateTime_DateTime*> current_time)
+        )
+
+        self.init(<shared_ptr[CFileSystem]> wrapped)
+
+    cdef init(self, const shared_ptr[CFileSystem]& wrapped):
+        FileSystem.init(self, wrapped)
+        self.mockfs = <CMockFileSystem*> wrapped.get()

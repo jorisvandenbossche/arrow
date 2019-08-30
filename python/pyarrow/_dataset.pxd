@@ -15,15 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
+# cython: language_level = 3
 
-from pyarrow._fs import (  # noqa
-    Selector,
-    FileType,
-    FileStats,
-    FileSystem,
-    LocalFileSystem,
-    LocalFileSystemOptions,
-    SubTreeFileSystem,
-    _MockFileSystem
-)
+from pyarrow.includes.libarrow_dataset cimport *

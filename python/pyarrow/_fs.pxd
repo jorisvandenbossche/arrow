@@ -38,12 +38,16 @@ cdef class FileStats:
         CFileStats stats
 
     @staticmethod
-    cdef FileStats wrap(CFileStats stats)
+    cdef wrap(CFileStats stats)
+
+    cdef inline CFileStats unwrap(self)
 
 
 cdef class Selector:
     cdef:
         CSelector selector
+
+    cdef inline CSelector unwrap(self)
 
 
 cdef class FileSystem:
@@ -52,6 +56,11 @@ cdef class FileSystem:
         CFileSystem* fs
 
     cdef init(self, const shared_ptr[CFileSystem]& wrapped)
+
+    @staticmethod
+    cdef wrap(shared_ptr[CFileSystem]& sp)
+
+    cdef inline shared_ptr[CFileSystem] unwrap(self)
 
 
 cdef class LocalFileSystem(FileSystem):
@@ -64,5 +73,12 @@ cdef class LocalFileSystem(FileSystem):
 cdef class SubTreeFileSystem(FileSystem):
     cdef:
         CSubTreeFileSystem* subtreefs
+
+    cdef init(self, const shared_ptr[CFileSystem]& wrapped)
+
+
+cdef class _MockFileSystem(FileSystem):
+    cdef:
+        CMockFileSystem* mockfs
 
     cdef init(self, const shared_ptr[CFileSystem]& wrapped)
