@@ -27,6 +27,7 @@
 #include "arrow/array.h"
 #include "arrow/buffer-builder.h"
 #include "arrow/compute/api.h"
+#include "arrow/extension_type.h"
 #include "arrow/table.h"
 #include "arrow/util/checked_cast.h"
 #include "arrow/visitor_inline.h"
@@ -51,6 +52,7 @@ using arrow::Field;
 using arrow::FixedSizeBinaryArray;
 using Int16BufferBuilder = arrow::TypedBufferBuilder<int16_t>;
 using arrow::ListArray;
+using arrow::ExtensionArray;
 using arrow::MemoryPool;
 using arrow::NumericArray;
 using arrow::PrimitiveArray;
@@ -112,6 +114,10 @@ class LevelBuilder {
     return VisitInline(*array.values());
   }
 
+  Status Visit(const ExtensionArray& array) {
+    return VisitInline(*array.storage());
+  }
+
 #define NOT_IMPLEMENTED_VISIT(ArrowTypePrefix)                             \
   Status Visit(const ::arrow::ArrowTypePrefix##Array& array) {             \
     return Status::NotImplemented("Level generation for " #ArrowTypePrefix \
@@ -124,7 +130,6 @@ class LevelBuilder {
   NOT_IMPLEMENTED_VISIT(Struct)
   NOT_IMPLEMENTED_VISIT(Union)
   NOT_IMPLEMENTED_VISIT(Dictionary)
-  NOT_IMPLEMENTED_VISIT(Extension)
 
 #undef NOT_IMPLEMENTED_VISIT
 
