@@ -23,6 +23,7 @@
 
 #include "arrow/result.h"
 #include "arrow/status.h"
+#include "arrow/util/optional.h"
 #include "arrow/util/string_view.h"
 
 namespace arrow {
@@ -74,6 +75,10 @@ util::string_view RemoveTrailingSlash(util::string_view s);
 
 ARROW_EXPORT
 bool IsAncestorOf(util::string_view ancestor, util::string_view descendant);
+
+ARROW_EXPORT
+util::optional<util::string_view> RemoveAncestor(util::string_view ancestor,
+                                                 util::string_view descendant);
 
 // Join the components of an abstract path.
 template <class StringIt>
