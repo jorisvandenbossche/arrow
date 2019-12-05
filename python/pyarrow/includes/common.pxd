@@ -50,7 +50,7 @@ cdef extern from * namespace "cymove" nogil:
     }
     }  // namespace cymove
     """
-    cdef T move" cymove::cymove"[T](T)
+    cdef T cymove" cymove::cymove"[T](T)
 
 cdef extern from "arrow/python/platform.h":
     pass

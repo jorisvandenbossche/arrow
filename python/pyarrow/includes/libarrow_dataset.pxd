@@ -135,12 +135,12 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
 
     cdef cppclass CScanOptions "arrow::dataset::ScanOptions":
         CExpressionPtr filter
-        shared_ptr[CSchema] schema
+        shared_ptr[CSchema] schema()
         # shared_ptr[CExpressionEvaluator] evaluator
         # shared_ptr[CRecordBatchProjector] projector
 
         @staticmethod
-        shared_ptr[CScanOptions] Defaults()
+        shared_ptr[CScanOptions] Make(shared_ptr[CSchema])
 
     cdef cppclass CScanContext "arrow::dataset::ScanContext":
         CMemoryPool* pool
@@ -183,6 +183,7 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
         c_bool splittable()
         c_string type()
         CScanOptionsPtr scan_options()
+        const CExpressionPtr& partition_expression()
 
     ctypedef shared_ptr[CDataFragment] CDataFragmentPtr \
         "arrow::dataset::DataFragmentPtr"
@@ -277,13 +278,17 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
     ctypedef unordered_map[c_string, CExpressionPtr] CPathPartitions \
         "arrow::dataset::PathPartitions"
 
+    ctypedef shared_ptr[CPartitionScheme] CPartitionSchemePtr \
+        "arrow::dataset::PartitionSchemePtr"
+
     cdef cppclass CFileSystemDataSource \
             "arrow::dataset::FileSystemDataSource"(CDataSource):
         @staticmethod
         CResult[CDataSourcePtr] Make(CFileSystemPtr filesystem,
                                      CFileStatsVector stats,
                                      CExpressionPtr source_partition,
-                                     CPathPartitions partitions,
+                                     CPartitionSchemePtr& partition_scheme,
+                                     const c_string& partition_base_dir,
                                      CFileFormatPtr format)
         c_string type()
         shared_ptr[CDataFragmentIterator] GetFragments(CScanOptionsPtr options)
@@ -309,9 +314,6 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
     cdef cppclass CPartitionScheme "arrow::dataset::PartitionScheme":
         c_string name() const
         CResult[CExpressionPtr] Parse(const c_string& path) const
-
-    ctypedef shared_ptr[CPartitionScheme] CPartitionSchemePtr \
-        "arrow::dataset::PartitionSchemePtr"
 
     cdef cppclass CSchemaPartitionScheme \
             "arrow::dataset::SchemaPartitionScheme"(CPartitionScheme):

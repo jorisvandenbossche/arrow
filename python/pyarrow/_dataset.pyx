@@ -372,7 +372,7 @@ cdef class DataFragment:
 
         context = context or ScanContext()
         iterator_result = self.fragment.Scan(context.unwrap())
-        iterator = move(GetResultValue(move(iterator_result)))
+        iterator = cymove(GetResultValue(cymove(iterator_result)))
 
         while True:
             iterator.Next(&task)
@@ -389,22 +389,27 @@ cdef class DataFragment:
     def scan_options(self):
         return ScanOptions.wrap(self.fragment.scan_options())
 
+    @property
+    def partition_expression(self):
+        return Expression.wrap(self.fragment.partition_expression())
+
 
 cdef class SimpleDataFragment(DataFragment):
 
     cdef:
         CSimpleDataFragment* simple_fragment
 
-    def __init__(self, record_batches):
+    def __init__(self, record_batches, schema):
         cdef:
             RecordBatch batch
             vector[shared_ptr[CRecordBatch]] batches
             shared_ptr[CSimpleDataFragment] simple_fragment
+            ScanOptions options = ScanOptions(schema)
 
         for batch in record_batches:
             batches.push_back(batch.sp_batch)
 
-        simple_fragment = make_shared[CSimpleDataFragment](batches)
+        simple_fragment = make_shared[CSimpleDataFragment](batches, options.unwrap())
         self.init(<shared_ptr[CDataFragment]> simple_fragment)
 
     cdef void init(self, const shared_ptr[CDataFragment]& sp):
@@ -548,30 +553,35 @@ cdef class FileSystemDataSource(DataSource):
         CFileSystemDataSource* filesystem_source
 
     def __init__(self, FileSystem filesystem not None, file_stats,
-                 Expression source_partition, dict path_partitions,
-                 FileFormat file_format not None):
+                 Expression source_partition, PartitionScheme partition_scheme,
+                 object partition_base_dir, FileFormat file_format not None):
         cdef:
             FileStats stats
             Expression expression
             vector[CFileStats] c_file_stats
             shared_ptr[CExpression] c_source_partition
-            unordered_map[c_string, shared_ptr[CExpression]] c_path_partitions
+            shared_ptr[CPartitionScheme] c_partition_scheme
             CResult[shared_ptr[CDataSource]] result
+            c_string c_partition_base_dir
 
         for stats in file_stats:
             c_file_stats.push_back(stats.unwrap())
 
-        for path, expression in path_partitions.items():
-            c_path_partitions[tobytes(path)] = expression.unwrap()
-
         if source_partition is not None:
             c_source_partition = source_partition.unwrap()
+
+        if partition_scheme is not None:
+            c_partition_scheme = partition_scheme.unwrap()
+
+        if partition_base_dir is not None:
+            c_partition_base_dir = tobytes(partition_base_dir)
 
         result = CFileSystemDataSource.Make(
             filesystem.unwrap(),
             c_file_stats,
             c_source_partition,
-            c_path_partitions,
+            c_partition_scheme,
+            c_partition_base_dir,
             file_format.unwrap()
         )
         self.init(GetResultValue(result))
@@ -630,10 +640,10 @@ cdef class ScanOptions:
         shared_ptr[CScanOptions] wrapped
         CScanOptions* options
 
-    def __init__(self, Schema schema=None):
-        self.init(CScanOptions.Defaults())
-        if schema is not None:
-            self.schema = schema
+    def __init__(self, Schema schema):
+        self.init(CScanOptions.Make(pyarrow_unwrap_schema(schema)))
+        # if schema is not None:
+        #     self.schema = schema
 
     cdef init(self, const shared_ptr[CScanOptions]& sp):
         self.wrapped = sp
@@ -650,14 +660,7 @@ cdef class ScanOptions:
 
     @property
     def schema(self):
-        if self.options.schema == nullptr:
-            return None
-        else:
-            return pyarrow_wrap_schema(self.options.schema)
-
-    @schema.setter
-    def schema(self, Schema value):
-        self.options.schema = pyarrow_unwrap_schema(value)
+        return pyarrow_wrap_schema(self.options.schema())
 
 
 cdef class FileScanOptions(ScanOptions):
@@ -743,7 +746,7 @@ cdef class ScanTask:
             CRecordBatchIterator iterator
             shared_ptr[CRecordBatch] record_batch
 
-        iterator = move(GetResultValue(move(self.task.Scan())))
+        iterator = cymove(GetResultValue(cymove(self.task.Scan())))
 
         while True:
             iterator.Next(&record_batch)
@@ -844,7 +847,7 @@ cdef class Scanner:
             CScanTaskIterator iterator
             shared_ptr[CScanTask] task
 
-        iterator = move(GetResultValue(move(self.scanner.Scan())))
+        iterator = cymove(GetResultValue(cymove(self.scanner.Scan())))
 
         while True:
             iterator.Next(&task)
