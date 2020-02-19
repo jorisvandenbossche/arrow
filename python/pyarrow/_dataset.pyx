@@ -540,6 +540,31 @@ cdef class FileSystemSourceFactory(SourceFactory):
         self.filesystem_factory = <CFileSystemSourceFactory*> sp.get()
 
 
+cdef class Fragment:
+    """Fragment of data from a Dataset."""
+
+    cdef:
+        shared_ptr[CFragment] wrapped
+        CFragment* fragment
+
+    @staticmethod
+    cdef wrap(shared_ptr[CFragment] sp):
+        # there's no discriminant in Fragment, so we can't downcast
+        # to FileFragment for the path property
+        cdef Fragment self = Fragment()
+        self.wrapped = sp
+        self.fragment = sp.get()
+        return self
+
+    @property
+    def partition_expression(self):
+        """
+        An Expression which evaluates to true for all data viewed by this
+        Fragment.
+        """
+        return Expression.wrap(self.fragment.partition_expression())
+
+
 cdef class Source:
     """Basic component of a Dataset which yields zero or more fragments.  """
 
@@ -591,6 +616,37 @@ cdef class Source:
             return None
         else:
             return Expression.wrap(expr)
+
+    def GetFragments(self, columns=None, filter=None):
+        """Returns an iterator over the fragments in this source.
+
+        Parameters
+        ----------
+        columns : list of str, default None
+            List of columns to project.
+        filter : Expression, default None
+            Scan will return only the rows matching the filter.
+
+        Returns
+        -------
+        fragments : iterator of Fragment
+        """
+        cdef:
+            CFragmentIterator iterator
+            shared_ptr[CFragment] fragment
+            shared_ptr[CScanOptions] scan_options
+
+        # FIXME(bkietz) hack to derive scan options from columns, filter
+        scan_options = Scanner(Dataset([], schema=self.schema),
+                               columns=columns, filter=filter).scanner.options()
+        iterator = self.source.GetFragments(scan_options)
+
+        while True:
+            fragment = GetResultValue(iterator.Next())
+            if fragment.get() == nullptr:
+                raise StopIteration()
+            else:
+                yield Fragment.wrap(fragment)
 
 
 cdef class TreeSource(Source):

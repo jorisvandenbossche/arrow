@@ -135,6 +135,8 @@ FragmentIterator FileSystemSource::GetFragmentsImpl(
   FragmentVector fragments;
   std::vector<std::shared_ptr<ScanOptions>> options(forest_.size());
 
+  ExpressionVector fragment_partitions(forest_.size());
+
   auto collect_fragments = [&](fs::PathForest::Ref ref) -> fs::PathForest::MaybePrune {
     auto partition = partitions_[ref.i];
 
@@ -142,8 +144,11 @@ FragmentIterator FileSystemSource::GetFragmentsImpl(
     // (which are appropriately simplified and loaded with default values)
     if (auto parent = ref.parent()) {
       options[ref.i].reset(new ScanOptions(*options[parent.i]));
+      fragment_partitions[ref.i] =
+          and_(partitions_[ref.i], fragment_partitions[parent.i]);
     } else {
       options[ref.i].reset(new ScanOptions(*root_options));
+      fragment_partitions[ref.i] = partitions_[ref.i];
     }
 
     // simplify filter by partition information
@@ -168,6 +173,7 @@ FragmentIterator FileSystemSource::GetFragmentsImpl(
       // generate a fragment for this file
       FileSource src(ref.stats().path(), filesystem_.get());
       ARROW_ASSIGN_OR_RAISE(auto fragment, format_->MakeFragment(src, options[ref.i]));
+      fragment->set_partition_expression(fragment_partitions[ref.i]);
       fragments.push_back(std::move(fragment));
     }
 

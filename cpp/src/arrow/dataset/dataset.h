@@ -57,6 +57,11 @@ class ARROW_DS_EXPORT Fragment {
     return partition_expression_;
   }
 
+  // TODO(bkietz) Partition expression should be added to FileFormat::MakeFragment
+  void set_partition_expression(std::shared_ptr<Expression> expr) {
+    partition_expression_ = std::move(expr);
+  }
+
  protected:
   explicit Fragment(std::shared_ptr<ScanOptions> scan_options);
 

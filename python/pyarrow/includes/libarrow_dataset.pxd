@@ -138,12 +138,7 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
         pass
 
     cdef cppclass CScanOptions "arrow::dataset::ScanOptions":
-        shared_ptr[CExpression] filter
-        shared_ptr[CSchema] schema
-        c_bool use_threads
-
-        @staticmethod
-        shared_ptr[CScanOptions] Defaults()
+        pass
 
     cdef cppclass CScanContext "arrow::dataset::ScanContext":
         CMemoryPool* pool
@@ -157,6 +152,7 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
     cdef cppclass CScanner "arrow::dataset::Scanner":
         CResult[CScanTaskIterator] Scan()
         CResult[shared_ptr[CTable]] ToTable()
+        const shared_ptr[CScanOptions]& options()
 
     cdef cppclass CScannerBuilder "arrow::dataset::ScannerBuilder":
         CScannerBuilder(shared_ptr[CDataset],
@@ -172,6 +168,7 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
         CResult[CScanTaskIterator] Scan(shared_ptr[CScanContext] context)
         c_bool splittable()
         shared_ptr[CScanOptions] scan_options()
+        const shared_ptr[CExpression]& partition_expression()
 
     ctypedef vector[shared_ptr[CFragment]] CFragmentVector \
         "arrow::dataset::FragmentVector"
@@ -271,8 +268,6 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
             CFileStatsVector stats,
             CExpressionVector partitions)
         c_string type()
-        shared_ptr[CFragmentIterator] GetFragments(
-            shared_ptr[CScanOptions] options)
 
     cdef cppclass CParquetScanOptions "arrow::dataset::ParquetScanOptions"(
             CFileScanOptions):

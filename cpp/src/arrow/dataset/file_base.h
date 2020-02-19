@@ -142,6 +142,13 @@ class ARROW_DS_EXPORT FileFragment : public Fragment {
         source_(std::move(source)),
         format_(std::move(format)) {}
 
+  FileFragment(FileSource source, std::shared_ptr<FileFormat> format,
+               std::shared_ptr<ScanOptions> scan_options,
+               std::shared_ptr<Expression> partition_expression)
+      : Fragment(std::move(scan_options), std::move(partition_expression)),
+        source_(std::move(source)),
+        format_(std::move(format)) {}
+
   Result<ScanTaskIterator> Scan(std::shared_ptr<ScanContext> context) override;
 
   const FileSource& source() const { return source_; }

@@ -204,6 +204,10 @@ def test_filesystem_source(mockfs):
                                  file_format=file_format)
     assert source.partition_expression.equals(root_partition)
 
+    fragments = list(source.GetFragments())
+    assert fragments[0].partition_expression.equals(partitions[0])
+    assert fragments[1].partition_expression.equals(partitions[1])
+
 
 def test_dataset(dataset):
     assert isinstance(dataset, ds.Dataset)
