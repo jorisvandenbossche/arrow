@@ -264,8 +264,10 @@ Result<ScanTaskIterator> ParquetFileFormat::ScanFile(
 }
 
 Result<std::shared_ptr<Fragment>> ParquetFileFormat::MakeFragment(
-    const FileSource& source, std::shared_ptr<ScanOptions> options) {
-  return std::make_shared<ParquetFragment>(source, options);
+    FileSource source, std::shared_ptr<ScanOptions> options,
+    std::shared_ptr<Expression> partition_expression) {
+  return std::make_shared<ParquetFragment>(std::move(source), std::move(options),
+                                           std::move(partition_expression));
 }
 
 Result<std::unique_ptr<parquet::ParquetFileReader>> ParquetFileFormat::OpenReader(

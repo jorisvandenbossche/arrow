@@ -167,6 +167,7 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
     cdef cppclass CFragment "arrow::dataset::Fragment":
         CResult[CScanTaskIterator] Scan(shared_ptr[CScanContext] context)
         c_bool splittable()
+        c_string type_name()
         shared_ptr[CScanOptions] scan_options()
         const shared_ptr[CExpression]& partition_expression()
 
@@ -248,11 +249,6 @@ cdef extern from "arrow/dataset/api.h" namespace "arrow::dataset" nogil:
 
     cdef cppclass CFileFragment "arrow::dataset::FileFragment"(
             CFragment):
-        CFileFragment(const CFileSource& source,
-                      shared_ptr[CFileFormat] format,
-                      shared_ptr[CScanOptions] scan_options)
-        CStatus Scan(shared_ptr[CScanContext] scan_context,
-                     shared_ptr[CScanTaskIterator]* out)
         const CFileSource& source()
         shared_ptr[CFileFormat] format()
         shared_ptr[CScanOptions] scan_options()

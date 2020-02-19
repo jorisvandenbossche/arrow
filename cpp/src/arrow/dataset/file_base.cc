@@ -39,6 +39,11 @@ Result<std::shared_ptr<arrow::io::RandomAccessFile>> FileSource::Open() const {
   return std::make_shared<::arrow::io::BufferReader>(buffer());
 }
 
+Result<std::shared_ptr<Fragment>> FileFormat::MakeFragment(
+    FileSource source, std::shared_ptr<ScanOptions> options) {
+  return MakeFragment(std::move(source), std::move(options), scalar(true));
+}
+
 Result<ScanTaskIterator> FileFragment::Scan(std::shared_ptr<ScanContext> context) {
   return format_->ScanFile(source_, scan_options_, context);
 }
@@ -172,8 +177,9 @@ FragmentIterator FileSystemSource::GetFragmentsImpl(
     if (ref.stats().IsFile()) {
       // generate a fragment for this file
       FileSource src(ref.stats().path(), filesystem_.get());
-      ARROW_ASSIGN_OR_RAISE(auto fragment, format_->MakeFragment(src, options[ref.i]));
-      fragment->set_partition_expression(fragment_partitions[ref.i]);
+      ARROW_ASSIGN_OR_RAISE(
+          auto fragment,
+          format_->MakeFragment(src, options[ref.i], fragment_partitions[ref.i]));
       fragments.push_back(std::move(fragment));
     }
 

@@ -130,7 +130,11 @@ class ARROW_DS_EXPORT FileFormat {
 
   /// \brief Open a fragment
   virtual Result<std::shared_ptr<Fragment>> MakeFragment(
-      const FileSource& location, std::shared_ptr<ScanOptions> options) = 0;
+      FileSource source, std::shared_ptr<ScanOptions> options,
+      std::shared_ptr<Expression> partition_expression) = 0;
+
+  Result<std::shared_ptr<Fragment>> MakeFragment(FileSource source,
+                                                 std::shared_ptr<ScanOptions> options);
 };
 
 /// \brief A Fragment that is stored in a file with a known format
@@ -153,6 +157,9 @@ class ARROW_DS_EXPORT FileFragment : public Fragment {
 
   const FileSource& source() const { return source_; }
   const std::shared_ptr<FileFormat>& format() const { return format_; }
+
+  // XXX should this include format_->type_name?
+  std::string type_name() const override { return "file"; }
 
  protected:
   FileSource source_;

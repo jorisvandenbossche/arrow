@@ -43,6 +43,8 @@ class ARROW_DS_EXPORT Fragment {
   /// scanning
   virtual bool splittable() const = 0;
 
+  virtual std::string type_name() const = 0;
+
   /// \brief Filtering, schema reconciliation, and partition options to use when
   /// scanning this fragment. May be nullptr, which indicates that no filtering
   /// or schema reconciliation will be performed and all partitions will be
@@ -55,11 +57,6 @@ class ARROW_DS_EXPORT Fragment {
   /// Fragment. May be null, which indicates no information is available.
   const std::shared_ptr<Expression>& partition_expression() const {
     return partition_expression_;
-  }
-
-  // TODO(bkietz) Partition expression should be added to FileFormat::MakeFragment
-  void set_partition_expression(std::shared_ptr<Expression> expr) {
-    partition_expression_ = std::move(expr);
   }
 
  protected:
@@ -81,9 +78,15 @@ class ARROW_DS_EXPORT InMemoryFragment : public Fragment {
   InMemoryFragment(std::vector<std::shared_ptr<RecordBatch>> record_batches,
                    std::shared_ptr<ScanOptions> scan_options);
 
+  InMemoryFragment(std::vector<std::shared_ptr<RecordBatch>> record_batches,
+                   std::shared_ptr<ScanOptions> scan_options,
+                   std::shared_ptr<Expression> partition_expression);
+
   Result<ScanTaskIterator> Scan(std::shared_ptr<ScanContext> context) override;
 
   bool splittable() const override { return false; }
+
+  std::string type_name() const override { return "in-memory"; }
 
  protected:
   std::vector<std::shared_ptr<RecordBatch>> record_batches_;

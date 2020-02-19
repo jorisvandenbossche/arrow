@@ -55,7 +55,7 @@ cdef class FileFormat:
         self.format = sp.get()
 
     @staticmethod
-    cdef wrap(shared_ptr[CFileFormat]& sp):
+    cdef wrap(const shared_ptr[CFileFormat]& sp):
         cdef FileFormat self
 
         typ = frombytes(sp.get().type_name())
@@ -547,13 +547,23 @@ cdef class Fragment:
         shared_ptr[CFragment] wrapped
         CFragment* fragment
 
+    cdef void init(self, const shared_ptr[CFragment]& sp):
+        self.wrapped = sp
+        self.fragment = sp.get()
+
     @staticmethod
-    cdef wrap(shared_ptr[CFragment] sp):
+    cdef wrap(const shared_ptr[CFragment]& sp):
         # there's no discriminant in Fragment, so we can't downcast
         # to FileFragment for the path property
         cdef Fragment self = Fragment()
-        self.wrapped = sp
-        self.fragment = sp.get()
+
+        typ = frombytes(sp.get().type_name())
+        if typ == 'file':
+            self = FileFragment.__new__(FileFragment)
+        else:
+            self = Fragment()
+
+        self.init(sp)
         return self
 
     @property
@@ -563,6 +573,31 @@ cdef class Fragment:
         Fragment.
         """
         return Expression.wrap(self.fragment.partition_expression())
+
+
+cdef class FileFragment(Fragment):
+    """A Fragment representing a data file."""
+
+    cdef:
+        CFileFragment* file_fragment
+
+    cdef void init(self, const shared_ptr[CFragment]& sp):
+        Fragment.init(self, sp)
+        self.file_fragment = <CFileFragment*> sp.get()
+
+    @property
+    def path(self):
+        """
+        The path of the data file viewed by this fragment.
+        """
+        return frombytes(self.file_fragment.source().path())
+
+    @property
+    def format(self):
+        """
+        The format of the data file viewed by this fragment.
+        """
+        return FileFormat.wrap(self.file_fragment.format())
 
 
 cdef class Source:

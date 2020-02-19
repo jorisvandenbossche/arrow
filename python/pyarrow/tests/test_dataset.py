@@ -207,6 +207,8 @@ def test_filesystem_source(mockfs):
     fragments = list(source.GetFragments())
     assert fragments[0].partition_expression.equals(partitions[0])
     assert fragments[1].partition_expression.equals(partitions[1])
+    assert fragments[0].path == paths[0]
+    assert fragments[1].path == paths[1]
 
 
 def test_dataset(dataset):
