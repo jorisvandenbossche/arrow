@@ -166,20 +166,31 @@ def dataset(mockfs):
     return ds.Dataset([source], schema)
 
 
+def destructure(fragment):
+    path = fragment.path
+    expr = fragment.partition_expression
+
+    segments = path.split('/')
+    basename = segments.pop()
+
+    segment_to_expr = {}
+
+    while type(expr) is ds.AndExpression:
+        segment_to_expr[segments.pop()] = expr.left_operand
+        expr = expr.right_operand
+
+    segment_to_expr[segments.pop()] = expr
+
+    base_dir = '/'.join(segments)
+    return base_dir, segment_to_expr, basename
+
+
 def test_filesystem_source(mockfs):
     schema = pa.schema([])
 
     file_format = ds.ParquetFileFormat()
 
     paths = ['subdir/1/xxx/file0.parquet', 'subdir/2/yyy/file1.parquet']
-    partitions = [ds.ScalarExpression(True), ds.ScalarExpression(True)]
-
-    source = ds.FileSystemSource(schema,
-                                 root_partition=None,
-                                 file_format=file_format,
-                                 filesystem=mockfs,
-                                 paths_or_selector=paths,
-                                 partitions=partitions)
 
     root_partition = ds.ComparisonExpression(
         ds.CompareOperator.Equal,
@@ -187,16 +198,8 @@ def test_filesystem_source(mockfs):
         ds.ScalarExpression(1337)
     )
     partitions = [
-        ds.ComparisonExpression(
-            ds.CompareOperator.Equal,
-            ds.FieldExpression('part'),
-            ds.ScalarExpression(1)
-        ),
-        ds.ComparisonExpression(
-            ds.CompareOperator.Equal,
-            ds.FieldExpression('part'),
-            ds.ScalarExpression(2)
-        )
+        (ds.field('group') == 1) & (ds.field('key') == 'xxx'),
+        (ds.field('group') == 2) & (ds.field('key') == 'yyy'),
     ]
     source = ds.FileSystemSource(paths_or_selector=paths, schema=schema,
                                  root_partition=root_partition,
@@ -205,10 +208,20 @@ def test_filesystem_source(mockfs):
     assert source.partition_expression.equals(root_partition)
 
     fragments = list(source.GetFragments())
+    assert len(fragments) == 2
     assert fragments[0].partition_expression.equals(partitions[0])
     assert fragments[1].partition_expression.equals(partitions[1])
     assert fragments[0].path == paths[0]
     assert fragments[1].path == paths[1]
+
+    assert destructure(fragments[0]) == ('subdir', {
+        '1': ds.field('group') == 1,
+        'xxx': ds.field('key') == 'xxx',
+    }, 'file0.parquet')
+    assert destructure(fragments[1]) == ('subdir', {
+        '2': ds.field('group') == 2,
+        'yyy': ds.field('key') == 'yyy',
+    }, 'file1.parquet')
 
 
 def test_dataset(dataset):
