@@ -565,6 +565,26 @@ def test_partitioning_function():
         ds.partitioning(schema, flavor="unsupported")
 
 
+@pytest.mark.pandas
+def test_partitioning_dictionary_key(mockfs):
+    # ARROW-8088 specifying partition key as dictionary type
+    schema = pa.schema([
+        pa.field('group', pa.dictionary(pa.int8(), pa.int32())),
+        pa.field('key', pa.dictionary(pa.int8(), pa.string()))
+    ])
+    part = ds.DirectoryPartitioning(schema)
+
+    dataset = ds.dataset(
+        "subdir", format="parquet", filesystem=mockfs, partitioning=part
+    )
+    table = dataset.to_table()
+
+    assert table.column('group').type.equals(schema.types[0])
+    assert table.column('group').to_pylist() == [1] * 5 + [2] * 5
+    assert table.column('key').type.equals(schema.types[1])
+    assert table.column('key').to_pylist() == ['xxx'] * 5 + ['yyy'] * 5
+
+
 def _create_single_file(base_dir, table=None):
     import pyarrow.parquet as pq
     if table is None:
