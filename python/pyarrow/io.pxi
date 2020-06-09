@@ -639,7 +639,10 @@ cdef class PythonFile(NativeFile):
                 # Not all file-like objects have a mode attribute
                 # (e.g. BytesIO)
                 try:
-                    inferred_mode = 'w' if handle.writable() else 'r'
+                    # TODO(temp) just for testing reading from fsspec's memory
+                    # filesystem because that creates file likes that are both
+                    # readable and writable
+                    inferred_mode = 'r' if handle.readable() else 'w'
                 except AttributeError:
                     raise ValueError("could not infer open mode for file-like "
                                      "object %r, please pass it explicitly"
