@@ -1,0 +1,24 @@
+/* colors */
+
+:root {
+  --color-active-navigation: 215, 70, 51;
+  /* Use normal text color (like h3, ..) instead of primary color */
+  --color-h1: var(--color-text-base);
+  --color-h2: var(--color-text-base);
+  /* Use softer blue from bootstrap's default info color */
+  --color-info: 23, 162, 184;
+  --header-height: 70px;
+}
+
+code {
+  color: rgb(215, 70, 51);
+}
+
+
+/* body {
+  padding-top: 0px;
+} */
+
+.navbar-light .navbar-nav .nav-link {
+  font-size: 1.1em;
+}

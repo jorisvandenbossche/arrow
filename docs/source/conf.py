@@ -185,9 +185,15 @@ html_theme = 'pydata_sphinx_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+# html_theme_options = {
+#     'nosidebar': True
+# }
+
 html_theme_options = {
-    'nosidebar': True
+    "github_url": "https://github.com/apache/arrow",
+    "twitter_url": "https://twitter.com/ApacheArrow",
 }
+
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
