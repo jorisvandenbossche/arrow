@@ -1,0 +1,13 @@
+<nav class="bd-links" id="bd-docs-nav" aria-label="Main navigation">
+  <div class="bd-toc-item active">
+    <!-- <ul class="nav bd-sidenav"> -->
+      {% if pagename.startswith("format") %}
+      {{ get_nav_object("sidebar", start_depth=1, maxdepth=4, collapse=False, includehidden=True, titles_only=True) }}
+      {% elif pagename.startswith("develop") %}
+      {{ get_nav_object("sidebar", start_depth=1, maxdepth=4, collapse=False, includehidden=True, titles_only=True) }}
+      {% else %}
+      {{ get_nav_object("sidebar", start_depth=2, maxdepth=4, collapse=False, includehidden=True, titles_only=True) }}
+      {% endif %}
+    <!-- </ul> -->
+  </div>
+</nav>

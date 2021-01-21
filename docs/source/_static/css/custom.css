@@ -22,3 +22,14 @@ code {
 .navbar-light .navbar-nav .nav-link {
   font-size: 1.1em;
 }
+
+
+/* no right padding -> reserve place for uncollapse icon if needed */
+.bd-sidebar .nav ul {
+  padding: 0 0 0 1.5rem;
+}
+
+
+svg {
+  vertical-align: inherit;
+}

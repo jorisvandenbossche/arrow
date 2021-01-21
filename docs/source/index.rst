@@ -36,6 +36,6 @@ such topics as:
 
 .. toctree::
 
-   spec
+   format
    libraries
    developers
