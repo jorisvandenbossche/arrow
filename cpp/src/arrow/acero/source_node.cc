@@ -104,13 +104,6 @@ struct SourceNode : ExecNode, public TracedNode {
               batch_size = morsel_length;
             }
             ExecBatch batch = morsel.Slice(offset, batch_size);
-            for (auto& value : batch.values) {
-              if (value.is_array()) {
-                ARROW_ASSIGN_OR_RAISE(value, arrow::util::EnsureAlignment(
-                                                 value.make_array(), ipc::kArrowAlignment,
-                                                 default_memory_pool()));
-              }
-            }
             if (has_ordering) {
               batch.index = batch_index;
             }
