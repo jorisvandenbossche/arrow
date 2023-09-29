@@ -28,6 +28,9 @@ grep -v 'pyarrow\|arrow-nightlies' requirements.txt | while read line
 do
     pip install $line
 done
+# pin version of https://github.com/substrait-io/substrait-python to pin
+# version of included substrait spec
+pip install substrait==0.4.0
 
 pip install -r requirements-build.txt
 # setup substrait-java
