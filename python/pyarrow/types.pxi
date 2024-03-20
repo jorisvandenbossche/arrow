@@ -4067,6 +4067,18 @@ def duration(unit):
     return out
 
 
+def month_interval():
+    """
+    """
+    return primitive_type(_Type_INTERVAL_MONTHS)
+
+
+def day_time_interval():
+    """
+    """
+    return primitive_type(_Type_INTERVAL_DAY_TIME)
+
+
 def month_day_nano_interval():
     """
     Create instance of an interval type representing months, days and
@@ -5228,6 +5240,8 @@ cdef dict _type_aliases = {
     'duration[ms]': duration('ms'),
     'duration[us]': duration('us'),
     'duration[ns]': duration('ns'),
+    'month_interval': month_interval(),
+    'day_time_interval': day_time_interval(),
     'month_day_nano_interval': month_day_nano_interval(),
 }
 

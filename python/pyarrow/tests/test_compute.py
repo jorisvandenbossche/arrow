@@ -3681,3 +3681,28 @@ def test_pairwise_diff():
     with pytest.raises(pa.ArrowInvalid,
                        match="overflow"):
         pa.compute.pairwise_diff_checked(arr, period=-1)
+
+
+def test_interval_between():
+    arr1 = pa.array(
+        [datetime.datetime(2020, 1, 1), None, datetime.datetime(1900, 12, 13)],
+        type=pa.timestamp('s')
+    )
+    arr2 = pa.array(
+        [datetime.datetime(2020, 5, 5), datetime.datetime(2020, 10, 1),
+         datetime.datetime(2020, 1, 1)],
+        type=pa.timestamp('s')
+    )
+    result = pc.month_day_nano_interval_between(arr1, arr2)
+    assert isinstance(result, pa.MonthDayNanoIntervalArray)
+    assert isinstance(result[0], pa.MonthDayNanoIntervalScalar)
+
+    result = pc.month_interval_between(arr1, arr2)
+    assert isinstance(result, pa.MonthIntervalArray)
+    assert isinstance(result[0], pa.MonthIntervalScalar)
+    assert str(result[0]) == "4M"
+
+    result = pc.day_time_interval_between(arr1, arr2)
+    assert isinstance(result, pa.DayTimeIntervalArray)
+    assert isinstance(result[0], pa.DayTimeIntervalScalar)
+    assert str(result[0]) == "125d0ms"

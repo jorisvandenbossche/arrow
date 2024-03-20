@@ -35,7 +35,8 @@ _FLOATING_TYPES = {lib.Type_HALF_FLOAT, lib.Type_FLOAT, lib.Type_DOUBLE}
 _DECIMAL_TYPES = {lib.Type_DECIMAL128, lib.Type_DECIMAL256}
 _DATE_TYPES = {lib.Type_DATE32, lib.Type_DATE64}
 _TIME_TYPES = {lib.Type_TIME32, lib.Type_TIME64}
-_INTERVAL_TYPES = {lib.Type_INTERVAL_MONTH_DAY_NANO}
+_INTERVAL_TYPES = {lib.Type_INTERVAL_MONTHS, lib.Type_INTERVAL_DAY_TIME,
+                   lib.Type_INTERVAL_MONTH_DAY_NANO}
 _TEMPORAL_TYPES = ({lib.Type_TIMESTAMP,
                     lib.Type_DURATION} | _TIME_TYPES | _DATE_TYPES |
                    _INTERVAL_TYPES)
@@ -306,7 +307,7 @@ def is_dictionary(t):
 
 @doc(is_null, datatype="interval")
 def is_interval(t):
-    return t.id == lib.Type_INTERVAL_MONTH_DAY_NANO
+    return t.id in _INTERVAL_TYPES
 
 
 @doc(is_null, datatype="primitive type")
