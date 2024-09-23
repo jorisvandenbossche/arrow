@@ -15,15 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ARG arch=amd64
-ARG go=1.21
-ARG staticcheck=v0.4.7
-FROM ${arch}/golang:${go}-bookworm
-
-# FROM collects all the args, get back the staticcheck version arg
-ARG staticcheck
-RUN GO111MODULE=on go install honnef.co/go/tools/cmd/staticcheck@${staticcheck}
-
-# Copy the go.mod and go.sum over and pre-download all the dependencies
-COPY go/ /arrow/go
-RUN cd /arrow/go && go mod download
+module Arrow
+  class StreamDecoder
+    def consume(data)
+      case data
+      when Buffer
+        consume_buffer(data)
+      else
+        consume_bytes(data)
+      end
+    end
+  end
+end

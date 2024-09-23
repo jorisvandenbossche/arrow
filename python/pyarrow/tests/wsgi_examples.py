@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,35 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -ex
+import pyarrow.fs
 
-source_dir=${1}/go
 
-if [ -n "${ARROW_PYTHON_VENV:-}" ]; then
-  . "${ARROW_PYTHON_VENV}/bin/activate"
-fi
-
-export GOFLAGS="${GOFLAGS} -gcflags=all=-d=checkptr"
-
-pushd ${source_dir}/arrow/cdata/test
-
-case "$(uname)" in
-    Linux)
-        testlib="cgotest.so"
-        ;;
-    Darwin)
-        testlib="cgotest.so"
-        ;;
-    MINGW*)
-        testlib="cgotest.dll"
-        ;;
-esac
-
-go build -tags cdata_test,assert -buildmode=c-shared -o $testlib .
-
-python test_export_to_cgo.py
-
-rm $testlib
-rm "${testlib%.*}.h"
-
-popd
+def application(env, start_response):
+    path = env['PATH_INFO']
+    members = path.split('/')
+    assert members[0] == ''
+    assert len(members) >= 2
+    root = members[1]
+    if root == 's3':
+        # See test_fs::test_uwsgi_integration
+        start_response('200 OK', [('Content-Type', 'text/html')])
+        # flake8: noqa
+        fs = pyarrow.fs.S3FileSystem()
+        return [b"Hello World\n"]
+    else:
+        start_response('404 Not Found', [('Content-Type', 'text/html')])
+        return [f"Path {path!r} not found\n".encode()]

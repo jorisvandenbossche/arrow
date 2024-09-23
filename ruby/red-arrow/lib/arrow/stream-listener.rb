@@ -15,20 +15,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-ARG base
-FROM ${base}
+module Arrow
+  class StreamListener < StreamListenerRaw
+    type_register
 
-ENV DEBIAN_FRONTEND noninteractive
+    def on_eos
+    end
 
-# Install python3 and pip so we can install pyarrow to test the C data interface.
-RUN apt-get update -y -q && \
-    apt-get install -y -q --no-install-recommends \
-        python3 \
-        python3-pip \
-        python3-venv && \
-    apt-get clean
+    def on_record_batch_decoded(record_batch, metadata)
+    end
 
-ENV ARROW_PYTHON_VENV /arrow-dev
-RUN python3 -m venv ${ARROW_PYTHON_VENV} && \
-    . ${ARROW_PYTHON_VENV}/bin/activate && \
-    pip install pyarrow cffi --only-binary pyarrow
+    def on_schema(schema, filtered_schema)
+    end
+
+    private
+    def virtual_do_on_eos
+      on_eos
+      true
+    end
+
+    def virtual_do_on_record_batch_decoded(record_batch, metadata)
+      on_record_batch_decoded(record_batch, metadata)
+      true
+    end
+
+    def virtual_do_on_schema_decoded(schema, filtered_schema)
+      on_schema_decoded(schema, filtered_schema)
+      true
+    end
+  end
+end

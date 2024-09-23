@@ -15,15 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-linters:
-  # Disable all linters.
-  # Default: false
-  disable-all: true
-  # Enable specific linter
-  # https://golangci-lint.run/usage/linters/#enabled-by-default
-  enable:
-    - gofmt
-    - goimports
+# NOTE: this script is not marked executable as it should be source'd
+# for `ulimit` to take effect.
 
-issues:
-  fix: true
+set -e
+
+platform=$(uname)
+
+if [ "${platform}" = "Linux" ]; then
+  # We need to override `core_pattern` because
+  # 1. the original setting may reference apport, which is not available under
+  #    most Docker containers;
+  # 2. we want to write the core file in a well-known directory.
+  sudo sysctl -w kernel.core_pattern="/tmp/core.%e.%p"
+fi
+
+ulimit -c unlimited
